@@ -2053,7 +2053,7 @@ local function activate()
     -- Звук
     writefile(
         "po.mp3",
-        game:HttpGet("https://raw.githubusercontent.com/ipadys/core/refs/heads/main/audio_2025-12-04_15-22-47.mp3")
+        game:HttpGet("https://raw.githubusercontent.com/alexcodep/OUPS/refs/heads/main/stony-memnye.mp3")
     )
     sound = Instance.new("Sound")
     sound.Parent = workspace
