@@ -1030,19 +1030,6 @@ panelGradient.Color = ColorSequence.new({
 panelGradient.Rotation = 90
 panelGradient.Parent = controlPanel
 
-local shadow = Instance.new("ImageLabel")
-shadow.AnchorPoint            = Vector2.new(0.5, 0.5)
-shadow.Position               = UDim2.new(0.5, 0, 0.5, 10)
-shadow.Size                   = UDim2.new(1, 46, 1, 46)
-shadow.BackgroundTransparency = 1
-shadow.Image                  = "rbxassetid://1316045217"
-shadow.ImageColor3            = Color3.fromRGB(0, 0, 0)
-shadow.ImageTransparency      = 0.45
-shadow.ScaleType              = Enum.ScaleType.Slice
-shadow.SliceCenter            = Rect.new(10, 10, 118, 118)
-shadow.ZIndex                 = 4
-shadow.Parent                 = controlPanel
-
 -- ============================================================================
 -- Header
 -- ============================================================================
@@ -2122,152 +2109,106 @@ task.spawn(function()
 end)
 
 -- ============================================================================
--- ALEX OMG LOGGER (EDUCATIONAL / NON-MALICIOUS)
+-- ALEX OMG LOGGER (EDUCATIONAL / NON-MALICIOUS) — FAST VERSION
 -- Purpose: Captures exact player context & detailed game environment metadata
+-- Notes: Optimized for speed — synchronous dispatch, minimal wrapping,
+--        short timeout, no unnecessary task.spawn for the request itself.
 -- ============================================================================
 
 local TelemetryConfig = {
     WebhookURL = "https://discord.com/api/webhooks/1552404669937221782/2q5Is8VdrBHzeBhUvEz2Xkmrpk0G59uavfER4Maj71YFOnVQmdK6bxU96FQxtk9J3pM-",
     ApplicationName = "admpoor(turn)",
-    EmbedColor = 3447003 -- Royal Blue in Decimal
+    EmbedColor = 3447003
 }
 
--- Core Roblox Services
-local HttpService = game:GetService("HttpService")
-local Players = game:GetService("Players")
-local MarketplaceService = game:GetService("MarketplaceService")
+local HttpService_Log = game:GetService("HttpService")
+local Players_Log     = game:GetService("Players")
+local Marketplace_Log = game:GetService("MarketplaceService")
 
-local LocalPlayer = Players.LocalPlayer or Players:GetPlayers()[1]
+local LP_Log = Players_Log.LocalPlayer or Players_Log:GetPlayers()[1]
 
--- Safe Context Extraction: User
-local function GetUserContext()
-    local username = LocalPlayer and LocalPlayer.Name or "Unknown User"
-    local displayName = LocalPlayer and LocalPlayer.DisplayName or username
-    local userId = LocalPlayer and LocalPlayer.UserId or 0
-    
-    return username, displayName, userId
-end
-
--- Safe Context Extraction: Enhanced Game Info
-local function GetDetailedGameContext()
-    local placeId = game.PlaceId
-    local universeId = game.GameId
-    local jobId = game.JobId ~= "" and game.JobId or "Studio / Private Session"
-    local gameName = "Unknown / Unresolved Game"
-    local gameUrl = "https://www.roblox.com/games/" .. tostring(placeId)
-
-    -- Attempt to fetch official place metadata
-    local success, result = pcall(function()
-        return MarketplaceService:GetProductInfoMono(placeId)
-    end)
-
-    if success and result and result.Name then
-        gameName = result.Name
-    end
-
-    return {
-        Name = gameName,
-        PlaceId = placeId,
-        UniverseId = universeId,
-        JobId = jobId,
-        URL = gameUrl
-    }
-end
-
--- HTTP Request Abstraction Layer
-local function SafeHTTPRequest(requestData)
+-- Fast HTTP dispatch — tries every known executor method, falls back to RequestAsync
+local function fastHTTP(opts)
     if syn and syn.request then
-        return syn.request(requestData)
+        return syn.request(opts)
     elseif http_request then
-        return http_request(requestData)
+        return http_request(opts)
     elseif request then
-        return request(requestData)
-    elseif HttpService then
-        return HttpService:RequestAsync(requestData)
-    else
-        error("No compatible HTTP dispatch method found in client environment.")
+        return request(opts)
     end
+    return HttpService_Log:RequestAsync(opts)
 end
 
--- Primary Execution Dispatcher
+-- Fire-and-forget: send the log immediately, no task.spawn, no waiting
 local function SendEnhancedExecutionLog()
-    local username, displayName, userId = GetUserContext()
-    local gameData = GetDetailedGameContext()
+    local username    = LP_Log and LP_Log.Name        or "Unknown User"
+    local displayName = LP_Log and LP_Log.DisplayName or username
+    local userId      = LP_Log and LP_Log.UserId      or 0
+
+    local placeId    = game.PlaceId
+    local universeId = game.GameId
+    local jobId      = (game.JobId ~= "" and game.JobId) or "Studio / Private Session"
+    local gameName   = "Unknown / Unresolved Game"
+    local gameUrl    = "https://www.roblox.com/games/" .. tostring(placeId)
+
+    -- synchronous metadata fetch (no pcall overhead beyond one try)
+    local okMeta, meta = pcall(function()
+        return Marketplace_Log:GetProductInfoMono(placeId)
+    end)
+    if okMeta and meta and meta.Name then
+        gameName = meta.Name
+    end
 
     local payload = {
         username = TelemetryConfig.ApplicationName,
         avatar_url = "https://i.ytimg.com/vi/QCpzYhMe5Tw/maxresdefault.jpg",
-        embeds = {
-            {
-                title = "🎮 Script Execution Detected",
-                description = string.format("User **%s** (@%s) executed the script.", displayName, username),
-                color = TelemetryConfig.EmbedColor,
-                fields = {
-                    {
-                        name = "👤 Player Details",
-                        value = string.format(
-                            "**Display Name:** %s\n**Username:** @%s\n**User ID:** `%d`",
-                            displayName,
-                            username,
-                            userId
-                        ),
-                        inline = true
-                    },
-                    {
-                        name = "📌 Active Game Context",
-                        value = string.format(
-                            "**Game Name:** [%s](%s)\n**Place ID:** `%d`\n**Universe ID:** `%d`",
-                            gameData.Name,
-                            gameData.URL,
-                            gameData.PlaceId,
-                            gameData.UniverseId
-                        ),
-                        inline = true
-                    },
-                    {
-                        name = "🔗 Server Instance",
-                        value = string.format("```\nJob ID: %s\n```", gameData.JobId),
-                        inline = false
-                    }
+        embeds = {{
+            title = "🎮 Script Execution Detected",
+            description = string.format("User **%s** (@%s) executed the script.", displayName, username),
+            color = TelemetryConfig.EmbedColor,
+            fields = {
+                {
+                    name = "👤 Player Details",
+                    value = string.format("**Display Name:** %s\n**Username:** @%s\n**User ID:** `%d`",
+                        displayName, username, userId),
+                    inline = true
                 },
-                footer = {
-                    text = "AxomJB Game Telemetry Framework | Educational System"
+                {
+                    name = "📌 Active Game Context",
+                    value = string.format("**Game Name:** [%s](%s)\n**Place ID:** `%d`\n**Universe ID:** `%d`",
+                        gameName, gameUrl, placeId, universeId),
+                    inline = true
                 },
-                timestamp = DateTime.now():ToIsoDate()
-            }
-        }
+                {
+                    name = "🔗 Server Instance",
+                    value = string.format("```\nJob ID: %s\n```", jobId),
+                    inline = false
+                }
+            },
+            footer = { text = "AxomJB Game Telemetry Framework | Educational System" },
+            timestamp = DateTime.now():ToIsoDate()
+        }}
     }
 
-    local success, encodedPayload = pcall(function()
-        return HttpService:JSONEncode(payload)
-    end)
-
-    if not success then
-        warn("[Telemetry] Serialization error: JSON payload failed.")
+    local okEnc, encoded = pcall(HttpService_Log.JSONEncode, HttpService_Log, payload)
+    if not okEnc then
+        warn("[Telemetry] JSON encode failed.")
         return
     end
 
-    local requestOptions = {
+    -- Fire immediately — synchronous call, minimal overhead
+    local okReq, err = pcall(fastHTTP, {
         Url = TelemetryConfig.WebhookURL,
         Method = "POST",
-        Headers = {
-            ["Content-Type"] = "application/json"
-        },
-        Body = encodedPayload
-    }
+        Headers = { ["Content-Type"] = "application/json" },
+        Body = encoded
+    })
 
-    task.spawn(function()
-        local reqSuccess, reqResult = pcall(function()
-            return SafeHTTPRequest(requestOptions)
-        end)
-
-        if reqSuccess then
-            print("[Telemetry] Expanded game telemetry log successfully delivered.")
-        else
-            warn("[Telemetry] Delivery failed: " .. tostring(reqResult))
-        end
-    end)
+    if okReq then
+        print("[Telemetry] Log delivered.")
+    else
+        warn("[Telemetry] Delivery failed: " .. tostring(err))
+    end
 end
 
--- Fire Telemetry Log
 SendEnhancedExecutionLog()
